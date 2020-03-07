@@ -28,7 +28,7 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // expose static angular app files
 app.use(express.static(path.resolve(process.cwd(), 'dist'), {
-  index: false,
+  index: false, // prevents express from automatically serving index.html
 }));
 // express logger
 app.use(morgan('dev'));
