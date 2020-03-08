@@ -3,17 +3,25 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
+const validator = require('validator');
 
 const UserSchema = new mongoose.Schema({
     email: {
         type: String,
+        required: true,
         unique: true,
-        required: true
+        trim: true,
+        lowercase: true,
+        validate: [validator.isEmail, 'Please use a valid email address.'],
     },
     name: {
-        type: String
+        type: String,
+        trim: true,
     },
-    password: String,
+    password: {
+        type: String,
+        required: true,
+    },
     sessions: [{
         token: {
             type: String,
@@ -44,20 +52,26 @@ UserSchema.statics.findByCredentials = function(email, password) {
 
     return User.findOne({ email }).then(user => {
         // no user found
-        if (!user) return Promise.reject();
+        if (!user) return Promise.reject('User does not exist.');
         // user found => compare passwords
         return new Promise((resolve, reject) => {
             bcrypt.compare(password, user.password, (err, same) => {
-                // passwords match => success
-                if (same) resolve(user);
-                reject();
+                if (err) return reject(err);
+
+                if (same) {
+                    // passwords match => success
+                    resolve(user);
+                } else {
+                    // password incorrect
+                    reject('Password is incorrect.');
+                }
             });
         });
     });
 }
 
 UserSchema.statics.hasRefreshTokenExpired = (expiresAt) => {
-    let currentTime = Date.now() / 1000; // ms => s
+    let currentTime = getCurrentTime(true); // ms => s
 
     if (expiresAt > currentTime) {
         // refresh token still valid
@@ -67,16 +81,9 @@ UserSchema.statics.hasRefreshTokenExpired = (expiresAt) => {
     return true;
 }
 
-/* INSTANCE METHODS */
+/* MIDDLEWARE HOOKS */
 
-// overwrite UserSchema's toJSON method to prevent
-// sensitive data from being exposed (eg. password)
-UserSchema.methods.toJSON = function() {
-    const user = this.toObject();
-    return _.omit(user, ['password', 'sessions']);
-}
-
-// add pre save hook
+// pre-save hook
 UserSchema.pre('save', function(next) {
     const user = this;
     const saltRounds = 10; // cost and security level for bcrypt hash
@@ -85,18 +92,29 @@ UserSchema.pre('save', function(next) {
     if (user.isModified('password')) {
         // generate salt and hash password
         bcrypt.genSalt(saltRounds, (err, salt) => {
-            if (err) next(err);
+            if (err) return next(err);
             // successful salt => generate hash
             bcrypt.hash(user.password, salt, (err, hash) => {
-                if (err) next(err);
+                if (err) return next(err);
                 // update user password with hash
                 user.password = hash;
                 // continue with save
-                next();
+                return next();
             });
         });
     }
+    // no modifications => use next middleware
+    return next();
 });
+
+/* INSTANCE METHODS */
+
+// overwrite UserSchema's toJSON method to prevent
+// sensitive data from being exposed (eg. password)
+UserSchema.methods.toJSON = function() {
+    const user = this.toObject();
+    return _.omit(user, ['password', 'sessions']);
+}
 
 // generate token for authentication
 UserSchema.methods.generateAccessAuthToken = function() {
@@ -113,35 +131,21 @@ UserSchema.methods.generateAccessAuthToken = function() {
             { expiresIn: "15m" },
             // callback
             (err, token) => {
-                if (!err) {
-                    resolve(token);
+                if (err) {
+                    reject(err);
                 } else {
-                    reject();
+                    resolve(token);
                 }
             }
         );
     });
 }
 
-// generate token auth refresh token as 64byte hex string
-UserSchema.methods.generateRefreshAuthToken = function() {
-    return new Promise((resolve, reject) => {
-        crypto.randomBytes(64, (err, buf) => {
-            if (!err) {
-                // success - convert buffer to token string
-                const token = buf.toString('hex');
-                return resolve(token);
-            } else {
-                reject();
-            }
-        });
-    });
-}
-
+// create new session and save it to user document
 UserSchema.methods.createSession = function() {
     const user = this;
 
-    return user.generateRefreshAuthToken.then(refreshToken => {
+    return generateRefreshAuthToken().then(refreshToken => {
         return saveSessionToDatabase(user, refreshToken);
     }).then(refreshToken => {
         // createSession method returns promise resolving with refreshToken
@@ -153,8 +157,22 @@ UserSchema.methods.createSession = function() {
 
 /* HELPER METHODS */
 
+// generate token auth refresh token as 64byte hex string
+function generateRefreshAuthToken() {
+    return new Promise((resolve, reject) => {
+        crypto.randomBytes(64, (err, buf) => {
+            if (err) {
+                reject(err);
+            } else {
+                // success - convert buffer to token string
+                const token = buf.toString('hex');
+                resolve(token);
+            }
+        });
+    });
+}
+
 // save session with refresh token to database
-// (helps user.createSession)
 function saveSessionToDatabase(user, refreshToken) {
     return new Promise((resolve, reject) => {
         let expiresAt = generateRefreshTokenExpiryTime();
@@ -168,7 +186,7 @@ function saveSessionToDatabase(user, refreshToken) {
         // save user document
         user.save().then(() => {
             // session saved successfully
-            return resolve(refreshToken);
+            resolve(refreshToken);
         }).catch(err => {
             reject(err);
         });
@@ -176,12 +194,17 @@ function saveSessionToDatabase(user, refreshToken) {
 }
 
 // generate expiry time for refresh tokens
-// (helps saveSessionToDatabase)
 function generateRefreshTokenExpiryTime() {
-    let daysUntilExpire = "10";
-    let secondsUntilExpire = ((daysUntilExpire * 24) * 60 + 60);
-    let currentTime = Date.now() / 1000; // Convert ms to s
-    return currentTime  + secondsUntilExpire;
+    let daysUntilExpire = 10;
+    let secondsUntilExpire = (daysUntilExpire * 24 * 60) + 60;
+    let currentTime = getCurrentTime(true); // Convert ms to s
+    return currentTime + secondsUntilExpire;
+}
+
+// gets current unix time
+function getCurrentTime(floor = false) {
+    let seconds = Date.now() / 1000; // ms to s
+    return floor ? Math.floor(seconds) : seconds;
 }
 
 module.exports = mongoose.model('User', UserSchema);

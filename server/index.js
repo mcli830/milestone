@@ -17,6 +17,8 @@ const port = process.env.SERVER_PORT || 8080;
 const app = express();
 const server = http.createServer(app);
 
+/* MIDDLEWARE */
+
 // expose static angular app files
 app.use(express.static(path.resolve(process.cwd(), 'dist'), {
   index: false, // prevents express from automatically serving index.html
@@ -27,17 +29,19 @@ app.use(morgan('dev'));
 app.use(helmet());
 // parse cookies and request body
 app.use(cookieParser());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(bodyParser.json({ type: 'application/vnd.api+json' }));
+// app.use(bodyParser.json({ type: 'application/vnd.api+json' }));
 // PUT/PATCH, DELETE support for some browsers
 app.use(methodOverride());
 
-// routes
+/* ROUTING */
+
 app.use('/auth', authRouter);
 app.use('/api', apiRouter);
 
-// catch all and send to angular app at dist/index.html
+// send angular app index if no routes match
+// angular will handle app routing
 app.get('*', (req,res) => {
   res.sendFile(path.resolve(process.cwd(), 'dist', 'index.html'));
 });
@@ -47,15 +51,17 @@ app.use((req,res,next) => {
   next(createError(404));
 })
 
-// error handler
+// central error handler
 app.use((err, req, res, next) => {
   console.log(err.message);
   res.status(500);
   res.json({ status: 500, error: err });
 });
 
-// connect to database
+/* DATABASE CONNECTION */
+
 console.log('Connecting to database...');
+// connect to database
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -63,9 +69,6 @@ mongoose.connect(process.env.MONGO_URI, {
   useFindAndModify: false,
 }).then(() => {
   console.log('Database connection established.');
-
-  // configure authentication strategies once database is connected
-  // configAuthStrategies();
 
   // start server
   server.listen(port, () => {

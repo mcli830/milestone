@@ -42,6 +42,7 @@
     "path": "^0.12.7",
     "rxjs": "~6.5.4",
     "tslib": "^1.10.0",
+    "validator": "^12.2.0",
     "zone.js": "~0.10.2"
   },
   "devDependencies": {
