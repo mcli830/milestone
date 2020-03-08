@@ -9,12 +9,9 @@ const bodyParser = require('body-parser');
 const methodOverride = require('method-override');
 const createError = require('http-errors');
 const http = require('http');
-const passport = require('passport');
-const session = require('express-session');
-const sessionStore = new session.MemoryStore();
-// import from server
+// import routers
+const authRouter = require('./routes/auth');
 const apiRouter = require('./routes/api');
-const configAuthStrategies = require('./auth/strategies');
 
 const port = process.env.SERVER_PORT || 8080;
 const app = express();
@@ -35,19 +32,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.json({ type: 'application/vnd.api+json' }));
 // PUT/PATCH, DELETE support for some browsers
 app.use(methodOverride());
-// configure session
-app.use(session({
-  secret: process.env.SECRET,
-  resave: true,
-  saveUninitialized: true,
-  key: 'express.sid',
-  store: sessionStore,
-}));
-// initialize passport with session
-app.use(passport.initialize());
-app.use(passport.session());
 
 // routes
+app.use('/auth', authRouter);
 app.use('/api', apiRouter);
 
 // catch all and send to angular app at dist/index.html
@@ -78,7 +65,7 @@ mongoose.connect(process.env.MONGO_URI, {
   console.log('Database connection established.');
 
   // configure authentication strategies once database is connected
-  configAuthStrategies();
+  // configAuthStrategies();
 
   // start server
   server.listen(port, () => {
