@@ -1,5 +1,41 @@
+const createError = require("http-errors");
 const { User } = require("../models/index");
 const router = require('express').Router();
+
+/* MIDDLEWARE */
+
+// verify session/refresh token
+const verifySession = (req, res, next) => {
+
+    // grab _id and refresh token from request header
+    const _id = req.header('_id');
+    const refreshToken = req.header('x-refresh-token');
+
+    User.findByIdAndToken(_id, refreshToken).then(user => {
+        // user not found
+        if (!user) return Promise.reject({ message: 'User not found.' });
+
+        // user and session found
+        // attach user/token data to request for next middleware
+        req.user = user;
+        req.refreshToken = refreshToken;
+
+        // verify session refreshToken has not expired
+        const session = user.sessions.find(s => s.token === refreshToken);
+        if (!session || User.hasRefreshTokenExpired(session.expiry)) {
+            // session has expired
+            return Promise.reject(createError(401, "User session has expired."));
+        }
+
+        // session is still valid => continue
+        next();
+
+    }).catch(err => {
+        next(err);
+    });
+}
+
+/* ROUTES */
 
 // register user
 router.post('/users', (req, res) => {
@@ -24,7 +60,7 @@ router.post('/users', (req, res) => {
            .send(user);
 
     }).catch(err => {
-        res.status(400).send(err);
+        res.status(401).send(err);
     });
 });
 
@@ -49,13 +85,24 @@ router.post('/users/login', (req, res) => {
                .json(user);
         });
     }).catch(err => {
-        res.send(err);
+        res.stats(401).send(err);
     }); 
-
 });
 
-router.get('/', (req, res) => {
-    res.send('Hello auth router!');
-})
+// generate an access token for the client
+router.get('/users/me/access-token', verifySession, (req, res, next) => {
+    const user = req.user;
+
+    user.generateAccessAuthToken().then(accessToken => {
+        // send access token in header AND body for client convenience
+        res.header('x-access-token', accessToken)
+           .send({ accessToken });
+
+    }).catch(err => {
+        res.status(401).send(err);
+    });
+});
+
+
 
 module.exports = router;

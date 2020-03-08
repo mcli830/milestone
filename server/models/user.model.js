@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const validator = require('validator');
+const { customLogger } = require('../lib/debug');
+
+const checkpoint = customLogger('magenta', '[checkpoint]');
 
 const UserSchema = new mongoose.Schema({
     email: {
@@ -27,7 +30,7 @@ const UserSchema = new mongoose.Schema({
             type: String,
             required: true
         },
-        expiresAt: {
+        expiry: {
             type: Number,
             required: true,
         }
@@ -37,12 +40,13 @@ const UserSchema = new mongoose.Schema({
 /* MODEL METHODS */
 
 // find instance by id and token
-UserSchema.statics.findByIdAndToken = function(_id, token) {
+UserSchema.statics.findByIdAndToken = function(_id, refreshToken) {
     const User = this;
 
+    // return promise with user document
     return User.findOne({
         _id,
-        'sessions.token': token, // searches instance.sessions[{ token }]
+        'sessions.token': refreshToken, // searches user.sessions[].token
     });
 }
 
@@ -52,7 +56,7 @@ UserSchema.statics.findByCredentials = function(email, password) {
 
     return User.findOne({ email }).then(user => {
         // no user found
-        if (!user) return Promise.reject('User does not exist.');
+        if (!user) return Promise.reject({ message: 'User does not exist.' });
         // user found => compare passwords
         return new Promise((resolve, reject) => {
             bcrypt.compare(password, user.password, (err, same) => {
@@ -63,22 +67,28 @@ UserSchema.statics.findByCredentials = function(email, password) {
                     resolve(user);
                 } else {
                     // password incorrect
-                    reject('Password is incorrect.');
+                    reject({ message: 'Password is incorrect.' });
                 }
             });
         });
     });
 }
 
-UserSchema.statics.hasRefreshTokenExpired = (expiresAt) => {
-    let currentTime = getCurrentTime(true); // ms => s
+UserSchema.statics.hasRefreshTokenExpired = (expiry) => {
+    checkpoint('Validating refresh token...');
+    
+    const currentTime = getCurrentTime(true); // ms => s
 
-    if (expiresAt > currentTime) {
-        // refresh token still valid
-        return false;
-    }
-    // refresh token has expired
-    return true;
+    const delta = expiry - currentTime;
+    const expired = delta < 0;
+    checkpoint(
+        expired
+            ? `Refresh token expired ${delta}(s) ago.`
+            : `Refresh token expires in ${delta}(s).`
+    );
+
+    // currentTime has passed expiry time => expired => true
+    return expired;
 }
 
 /* MIDDLEWARE HOOKS */
@@ -99,6 +109,7 @@ UserSchema.pre('save', function(next) {
                 // update user password with hash
                 user.password = hash;
                 // continue with save
+                checkpoint('New hash generated from user password');
                 return next();
             });
         });
@@ -107,11 +118,18 @@ UserSchema.pre('save', function(next) {
     return next();
 });
 
+// post save hook
+UserSchema.post('save', function(doc, next) {
+    checkpoint(`User:(${doc.email}) saved to database.`);
+    next();
+});
+
 /* INSTANCE METHODS */
 
 // overwrite UserSchema's toJSON method to prevent
 // sensitive data from being exposed (eg. password)
 UserSchema.methods.toJSON = function() {
+    checkpoint('User instance used protected transform with toJSON()')
     const user = this.toObject();
     return _.omit(user, ['password', 'sessions']);
 }
@@ -134,6 +152,7 @@ UserSchema.methods.generateAccessAuthToken = function() {
                 if (err) {
                     reject(err);
                 } else {
+                    checkpoint('New access auth token generated.')
                     resolve(token);
                 }
             }
@@ -151,7 +170,7 @@ UserSchema.methods.createSession = function() {
         // createSession method returns promise resolving with refreshToken
         return refreshToken;
     }).catch(err => {
-        return Promise.reject('Failed to save session to database.\n' + err);
+        return Promise.reject(err);
     }); 
 }
 
@@ -166,6 +185,7 @@ function generateRefreshAuthToken() {
             } else {
                 // success - convert buffer to token string
                 const token = buf.toString('hex');
+                checkpoint('New refresh auth token generated.')
                 resolve(token);
             }
         });
@@ -175,17 +195,18 @@ function generateRefreshAuthToken() {
 // save session with refresh token to database
 function saveSessionToDatabase(user, refreshToken) {
     return new Promise((resolve, reject) => {
-        let expiresAt = generateRefreshTokenExpiryTime();
+        let expiry = generateRefreshTokenExpiryTime();
         
         // add session to user
         user.sessions.push({
             token: refreshToken,
-            expiresAt,
+            expiry,
         });
 
         // save user document
         user.save().then(() => {
             // session saved successfully
+            checkpoint(`New session saved created for User:(${user.email}).`);
             resolve(refreshToken);
         }).catch(err => {
             reject(err);
