@@ -1,5 +1,13 @@
 <p>Progression tracker; achievement visualizer; life enhancer;</p>
 
+<div *ngIf="user">
+
+    <hr class="margin-bottom-large">
+
+    <p>Logged in as {{ user.name }}</p>
+
+</div>
+
 <hr class="margin-bottom-large">
 
 <a href="/register">Register</a>
