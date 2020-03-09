@@ -1,3 +1,4 @@
 export const environment = {
-  production: true
+  production: true,
+  host: 'https://milestone-c91e0.firebaseap.com'
 };
