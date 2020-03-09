@@ -1,18 +1,18 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { AuthService } from 'src/app/services/auth.service';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { HttpResponse } from '@angular/common/http';
-import { AuthService } from 'src/app/services/auth.service';
 import { User } from 'src/app/models/user.model';
 
 @Component({
-  selector: 'app-register',
-  templateUrl: './register.component.html',
-  styleUrls: ['./register.component.css']
+  selector: 'app-login-form',
+  templateUrl: './login-form.component.html',
+  styleUrls: ['./login-form.component.css']
 })
-export class RegisterComponent implements OnInit {
+export class LoginFormComponent implements OnInit {
 
-  registerForm: FormGroup;
+  loginForm: FormGroup;
 
   constructor(
     private authService: AuthService,
@@ -21,15 +21,14 @@ export class RegisterComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    this.registerForm = this.formBuilder.group({
-      name: '',
+    this.loginForm = this.formBuilder.group({
       email: '',
       password: '',
     });
   }
 
   onSubmit(user: User): void {
-    this.authService.register(user).subscribe((res: HttpResponse<any>) => {
+    this.authService.login(user).subscribe((res: HttpResponse<any>) => {
       this.router.navigate(['/']);
     });
   }

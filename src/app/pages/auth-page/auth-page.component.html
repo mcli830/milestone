@@ -1,0 +1,41 @@
+<div class="container">
+
+  <div class="card">
+
+    <header class="card-header">
+      <h2 class="card-header-title title is-4 has-text-primary">
+          <span>
+            {{ formHeader }}
+          </span>
+      </h2>
+    </header>
+
+    <div class="card-content">
+
+      <div *ngIf="register; else login_form">
+        <app-register-form></app-register-form>
+      </div>
+
+      <ng-template #login_form>
+        <app-login-form></app-login-form>
+      </ng-template>
+
+    </div>
+
+    <footer class="card-footer">
+      <div *ngIf="register; else login_footer" class="card-footer-item">
+        <span>Already have an account?</span>
+        <a href="/login">Log in</a>.
+      </div>
+
+      <ng-template #login_footer>
+        <div class="card-footer-item">
+          <span>Don't have an account?</span>
+          <a href="/register">Sign up</a>.
+        </div>
+      </ng-template>
+    </footer>
+
+  </div>
+
+</div>

@@ -1,13 +1,20 @@
-<p>Progression tracker; achievement visualizer; life enhancer;</p>
+<div class="container">
 
-<hr class="margin-bottom-large">
+  <div *ngIf="user; else unauthenticated">
+    <div class="card">
+      <div class="card-content">
+        Logged in as {{ user.name }}.
+        <a (click)="onSignOut()" style="margin-left: 0.5rem;">
+          Sign Out
+        </a>
+      </div>
+    </div>
+  </div>
 
-<div *ngIf="user; else unauthenticated">
-    <p>Logged in as {{ user.name }}</p>
-    <button (click)="onSignOut()">Sign Out</button>
+  <ng-template #unauthenticated>
+    <a class="button" href="/register">Register</a>
+    <span style="margin: 0 1rem;">~</span>
+    <a class="button" href="/login">Log in</a>
+  </ng-template>
+
 </div>
-
-<ng-template #unauthenticated>
-    <a href="/register">Register</a>
-    <a href="/login" class="margin-left">Login</a>
-</ng-template>
