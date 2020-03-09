@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const methodOverride = require('method-override');
@@ -25,8 +26,9 @@ app.use(express.static(path.resolve(process.cwd(), 'dist'), {
 }));
 // express logger
 app.use(morgan('dev'));
-// header security
+// security
 app.use(helmet());
+app.use(cors());
 // parse cookies and request body
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -46,7 +48,7 @@ app.get('*', (req,res) => {
   res.sendFile(path.resolve(process.cwd(), 'dist', 'index.html'));
 });
 
-// catch 404  
+// catch 404
 app.use((req,res,next) => {
   next(createError(404));
 })
