@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormBuilder } from '@angular/forms';
-import { HttpResponse } from "@angular/common/http";
-import { AuthService } from '../../services/auth.service';
-import { User } from '../../models/user.model';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { HttpResponse } from '@angular/common/http';
+import { AuthService } from 'src/app/services/auth.service';
+import { User } from 'src/app/models/user.model';
 
 @Component({
   selector: 'app-register',
@@ -12,7 +12,7 @@ import { User } from '../../models/user.model';
 })
 export class RegisterComponent implements OnInit {
 
-  registerForm;
+  registerForm: FormGroup;
 
   constructor(
     private authService: AuthService,
@@ -28,9 +28,8 @@ export class RegisterComponent implements OnInit {
     });
   }
 
-  onSubmit(userData: User): void {
-    console.log(userData);
-    this.authService.register(userData).subscribe((res: HttpResponse<any>) => {
+  onSubmit(user: User): void {
+    this.authService.register(user).subscribe((res: HttpResponse<any>) => {
       this.router.navigate(['/']);
     });
   }

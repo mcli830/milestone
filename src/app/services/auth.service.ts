@@ -4,33 +4,38 @@ import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { shareReplay, tap } from 'rxjs/operators';
 import { User } from '../models/user.model';
+import { Subject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-
   headers = new HttpHeaders().set('Content-Type', 'application/json');
   user: User;
+  userObserver: Subject<User> = new Subject<User>();
 
-  constructor(
-    private httpClient: HttpClient,
-    public router: Router,
-  ) {
+  constructor(private httpClient: HttpClient, public router: Router) {
+    // make user observable
+    this.userObserver.subscribe((value: User) => {
+      this.user = value;
+    });
     // initialize(login) user if localStorage contains user-id key
   }
 
+  getUser() {
+    return this.user;
+  }
+
   register(user: User): Observable<any> {
-    // return Subscription observer
-    return this.httpClient.post('/auth/users', user, {
-      observe: 'response',
-    }).pipe(
-      // prevent multicasting
-      shareReplay(),
-      // .tap() performs a side-effect for each response
-      // update local storage with token headers
-      tap(this.storeSession.bind(this))
-    );
+    // return Subscription observable
+    return this.httpClient.post(
+        '/auth/users',
+        user,
+        { observe: 'response' }
+      ).pipe(
+        shareReplay(), // prevent multicasting
+        tap(this.storeSession.bind(this)) // update cache, then return Observable
+      );
 
     /*
      *  localStorage is updated in .pipe() middleware to allow
@@ -39,12 +44,26 @@ export class AuthService {
      */
   }
 
-  getUser(){
-    return this.user;
+  login(user: User): Observable<any> {
+    // return Subscription observable
+    return this.httpClient.post(
+      '/auth/users/login',
+      user,
+      { observe: 'response' }
+    ).pipe(
+      shareReplay(),
+      tap(this.storeSession.bind(this))
+    );
   }
 
-  private updateUser(userData: User) {
-    this.user = userData;
+  logout(): void {
+    this.clearSession();
+    this.updateUser(null);
+    console.log('logout')
+  }
+
+  private updateUser(user: User) {
+    this.userObserver.next(user);
   }
 
   private storeSession(res: HttpResponse<any>): void {
@@ -55,8 +74,15 @@ export class AuthService {
     this.updateUser(res.body);
   }
 
-  private getAccessToken() {
-    return localStorage.getItem('access-token');
+  private clearSession(): void {
+    localStorage.removeItem('user-id');
+    localStorage.removeItem('access-token');
+    localStorage.removeItem('session-token');
+    console.log('Logged out');
+    this.updateUser(null);
   }
 
+  private getAccessToken(): string {
+    return localStorage.getItem('access-token');
+  }
 }

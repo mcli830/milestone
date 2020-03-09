@@ -85,7 +85,7 @@ router.post('/users/login', (req, res) => {
                .json(user);
         });
     }).catch(err => {
-        res.stats(401).send(err);
+        res.status(401).send(err);
     }); 
 });
 

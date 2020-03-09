@@ -4,16 +4,16 @@
         <h4>Login</h4>
         <hr>
 
-        <form>
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit(loginForm.value)">
 
             <div class="form-group">
                 <label for="email">email</label>
-                <input type="email" id="email">
+                <input type="email" id="email" formControlName="email">
             </div>
 
             <div class="form-group">
                 <label for="password">password</label>
-                <input type="password" id="password">
+                <input type="password" id="password" formControlName="password">
             </div>
 
             <div class="form-group">
