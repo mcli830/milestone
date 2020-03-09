@@ -40,13 +40,13 @@ const UserSchema = new mongoose.Schema({
 /* MODEL METHODS */
 
 // find instance by id and token
-UserSchema.statics.findByIdAndToken = function(_id, refreshToken) {
+UserSchema.statics.findByIdAndToken = function(_id, sessionToken) {
     const User = this;
 
     // return promise with user document
     return User.findOne({
         _id,
-        'sessions.token': refreshToken, // searches user.sessions[].token
+        'sessions.token': sessionToken, // searches user.sessions[].token
     });
 }
 
@@ -74,8 +74,8 @@ UserSchema.statics.findByCredentials = function(email, password) {
     });
 }
 
-UserSchema.statics.hasRefreshTokenExpired = (expiry) => {
-    checkpoint('Validating refresh token...');
+UserSchema.statics.hasSessionTokenExpired = (expiry) => {
+    checkpoint('Validating session token...');
     
     const currentTime = getCurrentTime(true); // ms => s
 
@@ -83,8 +83,8 @@ UserSchema.statics.hasRefreshTokenExpired = (expiry) => {
     const expired = delta < 0;
     checkpoint(
         expired
-            ? `Refresh token expired ${delta}(s) ago.`
-            : `Refresh token expires in ${delta}(s).`
+            ? `Session token expired ${delta}(s) ago.`
+            : `session token expires in ${delta}(s).`
     );
 
     // currentTime has passed expiry time => expired => true
@@ -164,11 +164,11 @@ UserSchema.methods.generateAccessAuthToken = function() {
 UserSchema.methods.createSession = function() {
     const user = this;
 
-    return generateRefreshAuthToken().then(refreshToken => {
-        return saveSessionToDatabase(user, refreshToken);
-    }).then(refreshToken => {
-        // createSession method returns promise resolving with refreshToken
-        return refreshToken;
+    return generateSessionAuthToken().then(sessionToken => {
+        return saveSessionToDatabase(user, sessionToken);
+    }).then(sessionToken => {
+        // createSession method returns promise resolving with sessionToken
+        return sessionToken;
     }).catch(err => {
         return Promise.reject(err);
     }); 
@@ -176,8 +176,8 @@ UserSchema.methods.createSession = function() {
 
 /* HELPER METHODS */
 
-// generate token auth refresh token as 64byte hex string
-function generateRefreshAuthToken() {
+// generate token session auth token as 64byte hex string
+function generateSessionAuthToken() {
     return new Promise((resolve, reject) => {
         crypto.randomBytes(64, (err, buf) => {
             if (err) {
@@ -185,21 +185,21 @@ function generateRefreshAuthToken() {
             } else {
                 // success - convert buffer to token string
                 const token = buf.toString('hex');
-                checkpoint('New refresh auth token generated.')
+                checkpoint('New session auth token generated.')
                 resolve(token);
             }
         });
     });
 }
 
-// save session with refresh token to database
-function saveSessionToDatabase(user, refreshToken) {
+// save session with session token to database
+function saveSessionToDatabase(user, sessionToken) {
     return new Promise((resolve, reject) => {
-        let expiry = generateRefreshTokenExpiryTime();
+        let expiry = generateSessionTokenExpiryTime();
         
         // add session to user
         user.sessions.push({
-            token: refreshToken,
+            token: sessionToken,
             expiry,
         });
 
@@ -207,15 +207,15 @@ function saveSessionToDatabase(user, refreshToken) {
         user.save().then(() => {
             // session saved successfully
             checkpoint(`New session saved created for User:(${user.email}).`);
-            resolve(refreshToken);
+            resolve(sessionToken);
         }).catch(err => {
             reject(err);
         });
     });
 }
 
-// generate expiry time for refresh tokens
-function generateRefreshTokenExpiryTime() {
+// generate expiry time for session tokens
+function generateSessionTokenExpiryTime() {
     let daysUntilExpire = 10;
     let secondsUntilExpire = (daysUntilExpire * 24 * 60) + 60;
     let currentTime = getCurrentTime(true); // Convert ms to s

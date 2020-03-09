@@ -4,25 +4,25 @@ const router = require('express').Router();
 
 /* MIDDLEWARE */
 
-// verify session/refresh token
+// verify session token
 const verifySession = (req, res, next) => {
 
-    // grab _id and refresh token from request header
     const _id = req.header('_id');
-    const refreshToken = req.header('x-refresh-token');
+    const sessionToken = req.header('x-session-token');
+    // grab _id and session token from request header
 
-    User.findByIdAndToken(_id, refreshToken).then(user => {
+    User.findByIdAndToken(_id, sessionToken).then(user => {
         // user not found
         if (!user) return Promise.reject({ message: 'User not found.' });
 
         // user and session found
         // attach user/token data to request for next middleware
         req.user = user;
-        req.refreshToken = refreshToken;
+        req.sessionToken = sessionToken;
 
-        // verify session refreshToken has not expired
-        const session = user.sessions.find(s => s.token === refreshToken);
-        if (!session || User.hasRefreshTokenExpired(session.expiry)) {
+        // verify session sessionToken has not expired
+        const session = user.sessions.find(s => s.token === sessionToken);
+        if (!session || User.hasSessionTokenExpired(session.expiry)) {
             // session has expired
             return Promise.reject(createError(401, "User session has expired."));
         }
@@ -46,16 +46,16 @@ router.post('/users', (req, res) => {
     user.save().then(() => {
         // successful save => create new session
         return user.createSession();
-        // return promise resolving with new refreshToken
-    }).then(refreshToken => {
+        // return promise resolving with new sessionToken
+    }).then(sessionToken => {
         // session created => generate access token for client
         return user.generateAccessAuthToken().then(accessToken => {
             // send both tokens to client
-            return { accessToken, refreshToken };
+            return { accessToken, sessionToken };
         });
-    }).then(({ accessToken, refreshToken }) => {
+    }).then(({ accessToken, sessionToken }) => {
         // respond with auth tokens and user data
-        res.header('x-refresh-token', refreshToken)
+        res.header('x-session-token', sessionToken)
            .header('x-access-token', accessToken)
            .send(user);
 
@@ -72,15 +72,15 @@ router.post('/users/login', (req, res) => {
     // find the login user
     User.findByCredentials(email, password).then(user => {
         // user found => create new session token
-        return user.createSession().then(refreshToken => {
+        return user.createSession().then(sessionToken => {
             // generate access auth token
             return user.generateAccessAuthToken().then(accessToken => {
                 // send both tokens to client
-                return { accessToken, refreshToken };
+                return { accessToken, sessionToken };
             });
-        }).then(({ accessToken, refreshToken }) => {
+        }).then(({ accessToken, sessionToken }) => {
             // respond with auth tokens and user data
-            res.header('x-refresh-token', refreshToken)
+            res.header('x-session-token', sessionToken)
                .header('x-access-token', accessToken)
                .json(user);
         });
