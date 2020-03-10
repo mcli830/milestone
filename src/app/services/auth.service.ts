@@ -10,19 +10,20 @@ import { Subject } from 'rxjs';
   providedIn: 'root'
 })
 export class AuthService {
-  user: User;
+  // tslint:disable-next-line: variable-name
+  _user: User;
   userObserver: Subject<User> = new Subject<User>();
 
   constructor(private httpClient: HttpClient, public router: Router) {
     // make user observable
     this.userObserver.subscribe((value: User) => {
-      this.user = value;
+      this._user = value;
     });
     // initialize(login) user if localStorage contains user-id key
   }
 
-  getUser() {
-    return this.user;
+  get user() {
+    return this._user;
   }
 
   register(user: User): Observable<HttpResponse<any>> {

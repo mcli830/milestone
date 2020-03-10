@@ -32,7 +32,7 @@ export class WebRequestInterceptor implements HttpInterceptor {
   addAuthHeader(request: HttpRequest<any>): HttpRequest<any> {
 
     // get user from AuthService
-    const user = this.authService.getUser();
+    const user = this.authService.user;
 
     if (user) {
       // insert user id into header
