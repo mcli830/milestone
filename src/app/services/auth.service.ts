@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { shareReplay, tap } from 'rxjs/operators';
 import { User } from '../models/user.model';
@@ -10,7 +10,6 @@ import { Subject } from 'rxjs';
   providedIn: 'root'
 })
 export class AuthService {
-  headers = new HttpHeaders().set('Content-Type', 'application/json');
   user: User;
   userObserver: Subject<User> = new Subject<User>();
 
@@ -62,14 +61,26 @@ export class AuthService {
     console.log('logout')
   }
 
+  getAccessToken(): string {
+    return localStorage.getItem('access-token');
+  }
+
+  setAccessToken(accessToken: string): void {
+    localStorage.setItem('access-token', accessToken);
+  }
+
+  setSessionToken(sessionToken: string): void {
+    localStorage.setItem('session-token', sessionToken);
+  }
+
   private updateUser(user: User) {
     this.userObserver.next(user);
   }
 
   private storeSession(res: HttpResponse<any>): void {
     localStorage.setItem('user-id', res.body._id);
-    localStorage.setItem('access-token', res.headers.get('x-access-token'));
-    localStorage.setItem('session-token', res.headers.get('x-session-token'));
+    this.setAccessToken(res.headers.get('x-access-token'));
+    this.setSessionToken(res.headers.get('x-session-token'));
     console.log('Registered and session stored');
     this.updateUser(res.body);
   }
@@ -80,9 +91,5 @@ export class AuthService {
     localStorage.removeItem('session-token');
     console.log('Logged out');
     this.updateUser(null);
-  }
-
-  private getAccessToken(): string {
-    return localStorage.getItem('access-token');
   }
 }

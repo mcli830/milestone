@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from 'src/app/services/auth.service';
 import { User } from 'src/app/models/user.model';
+import { HttpClient, HttpResponse, HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-index-page',
@@ -10,7 +12,9 @@ import { User } from 'src/app/models/user.model';
 export class IndexPageComponent implements OnInit {
 
   constructor(
-    private authService: AuthService
+    private authService: AuthService,
+    private httpClient: HttpClient,
+    private router: Router,
   ) { }
 
   ngOnInit(): void {
