@@ -38,9 +38,9 @@ export class WebRequestInterceptor implements HttpInterceptor {
       // insert access token header
       return request.clone({
         setHeaders: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
-      })
+      });
     }
 
     return request;
