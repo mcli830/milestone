@@ -5,6 +5,10 @@ const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const validator = require('validator');
 const { customLogger } = require('../lib/debug');
+const { parseDuration } = require('../lib/time');
+
+const sessionExpiryMs = parseDuration(process.env.SESSION_EXPIRY || "10d");
+const accessExpiryMs = parseDuration(process.env.ACCESS_EXPIRY || "15m");
 
 const checkpoint = customLogger('magenta', '[checkpoint]');
 
@@ -38,6 +42,16 @@ const UserSchema = new mongoose.Schema({
 });
 
 /* MODEL METHODS */
+
+// get user session token expiry duration
+UserSchema.statics.sessionDuration = function() {
+    return sessionExpiryMs;
+}
+
+// get user access token expiry duration
+UserSchema.statics.accessDuration = function() {
+    return accessExpiryMs;
+}
 
 // find instance by id and token
 UserSchema.statics.findByIdAndToken = function(_id, sessionToken) {
@@ -146,7 +160,7 @@ UserSchema.methods.generateAccessAuthToken = function() {
             // secret
             process.env.SECRET,
             // token options
-            { expiresIn: "15m" },
+            { expiresIn: accessExpiryMs },
             // callback
             (err, token) => {
                 if (err) {
@@ -216,10 +230,7 @@ function saveSessionToDatabase(user, sessionToken) {
 
 // generate expiry time for session tokens
 function generateSessionTokenExpiryTime() {
-    let daysUntilExpire = 10;
-    let secondsUntilExpire = (daysUntilExpire * 24 * 60) + 60;
-    let currentTime = getCurrentTime(true); // Convert ms to s
-    return currentTime + secondsUntilExpire;
+    return getCurrentTime(true) + sessionExpiryMs;
 }
 
 // gets current unix time

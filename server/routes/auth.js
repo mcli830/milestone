@@ -1,17 +1,28 @@
+const router = require('express').Router();
 const createError = require('http-errors');
 const { User } = require('../models/index');
-const router = require('express').Router();
+
+// constants
+const sessionTokenCookieOptions = {
+    maxAge: User.sessionDuration(),
+    httpOnly: true,
+}
+
+const accessTokenCookieOptions = {
+    maxAge: User.accessDuration(),
+    httpOnly: true,
+}
 
 /* MIDDLEWARE */
 
 // verify session token
 const verifySession = (req, res, next) => {
 
+    // grab _id from header and session token from cookies
     const _id = req.header('_id');
-    const sessionToken = req.header('x-session-token');
-    // grab _id and session token from request header
+    const sessionToken = req.cookies['session-token'];
 
-    // no headers
+    // no id or session token
     if (!_id || !sessionToken) {
       return res.send(createError(401));
     }
@@ -60,8 +71,8 @@ router.post('/users', (req, res) => {
         });
     }).then(({ accessToken, sessionToken }) => {
         // respond with auth tokens and user data
-        res.header('x-session-token', sessionToken)
-           .header('x-access-token', accessToken)
+        res.cookie('session-token', sessionTokenCookieOptions)
+           .cookie('access-token', accessToken, accessTokenCookieOptions)
            .send(user);
 
     }).catch(err => {
@@ -85,9 +96,9 @@ router.post('/users/login', (req, res) => {
             });
         }).then(({ accessToken, sessionToken }) => {
             // respond with auth tokens and user data
-            res.header('x-session-token', sessionToken)
-               .header('x-access-token', accessToken)
-               .json(user);
+            res.cookie('session-token', sessionToken, sessionTokenCookieOptions)
+               .cookie('access-token', accessToken, accessTokenCookieOptions)
+               .send(user);
         });
     }).catch(err => {
         res.status(401).send(err);
@@ -99,9 +110,9 @@ router.get('/users/me/access-token', verifySession, (req, res, next) => {
     const user = req.user;
 
     user.generateAccessAuthToken().then(accessToken => {
-        // send access token in header AND body for client convenience
-        res.header('x-access-token', accessToken)
-           .send({ accessToken });
+        // send access token only in cookie for security
+        res.cookie('access-token', accessToken, accessTokenCookieOptions)
+           .send();
 
     }).catch(err => {
         res.status(401).send(err);
