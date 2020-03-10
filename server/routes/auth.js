@@ -1,5 +1,5 @@
-const createError = require("http-errors");
-const { User } = require("../models/index");
+const createError = require('http-errors');
+const { User } = require('../models/index');
 const router = require('express').Router();
 
 /* MIDDLEWARE */
@@ -10,6 +10,11 @@ const verifySession = (req, res, next) => {
     const _id = req.header('_id');
     const sessionToken = req.header('x-session-token');
     // grab _id and session token from request header
+
+    // no headers
+    if (!_id || !sessionToken) {
+      return res.send(createError(401));
+    }
 
     User.findByIdAndToken(_id, sessionToken).then(user => {
         // user not found
@@ -86,7 +91,7 @@ router.post('/users/login', (req, res) => {
         });
     }).catch(err => {
         res.status(401).send(err);
-    }); 
+    });
 });
 
 // generate an access token for the client

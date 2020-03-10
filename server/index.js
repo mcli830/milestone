@@ -56,8 +56,7 @@ app.use((req,res,next) => {
 // central error handler
 app.use((err, req, res, next) => {
   console.log(err.message);
-  res.status(500);
-  res.json({ status: 500, error: err });
+  res.status(500).send(err);
 });
 
 /* DATABASE CONNECTION */
