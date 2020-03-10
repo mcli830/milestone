@@ -58,7 +58,7 @@ export class AuthService {
   logout(): void {
     this.clearSession();
     this.updateUser(null);
-    console.log('logout')
+    console.log('User logged out.');
   }
 
   getAccessToken(): string {
