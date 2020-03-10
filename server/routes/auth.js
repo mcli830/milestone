@@ -18,16 +18,16 @@ const accessTokenCookieOptions = {
 // verify session token
 const verifySession = (req, res, next) => {
 
-    // grab _id from header and session token from cookies
-    const _id = req.header('_id');
+    // grab _id from header and session from cookies
+    const user_id = req.cookies['user-id'];
     const sessionToken = req.cookies['session-token'];
 
     // no id or session token
-    if (!_id || !sessionToken) {
+    if (!user_id || !sessionToken) {
       return res.send(createError(401));
     }
 
-    User.findByIdAndToken(_id, sessionToken).then(user => {
+    User.findByIdAndToken(user_id, sessionToken).then(user => {
         // user not found
         if (!user) return Promise.reject({ message: 'User not found.' });
 
@@ -71,7 +71,8 @@ router.post('/users', (req, res) => {
         });
     }).then(({ accessToken, sessionToken }) => {
         // respond with auth tokens and user data
-        res.cookie('session-token', sessionTokenCookieOptions)
+        res.cookie('user-id', user._id, sessionTokenCookieOptions)
+           .cookie('session-token', sessionToken, sessionTokenCookieOptions)
            .cookie('access-token', accessToken, accessTokenCookieOptions)
            .send(user);
 
@@ -96,7 +97,8 @@ router.post('/users/login', (req, res) => {
             });
         }).then(({ accessToken, sessionToken }) => {
             // respond with auth tokens and user data
-            res.cookie('session-token', sessionToken, sessionTokenCookieOptions)
+            res.cookie('user-id', user._id, sessionTokenCookieOptions)
+               .cookie('session-token', sessionToken, sessionTokenCookieOptions)
                .cookie('access-token', accessToken, accessTokenCookieOptions)
                .send(user);
         });
@@ -105,14 +107,32 @@ router.post('/users/login', (req, res) => {
     });
 });
 
+// log out user by manually expiring cookies
+router.get('/users/logout', (req, res) => {
+    // get cookies
+    const cookies = req.cookies;
+    console.log(cookies)
+    // remove each cookie
+    for (let key in cookies) {
+        // safely access keys
+        if (!(key in cookies)) continue;
+        // reset value and expire each cookie
+        res.cookie(key, '', { expires: new Date(0) })
+    }
+    // send successful response
+    res.status(200).send();
+});
+
 // generate an access token for the client
 router.get('/users/me/access-token', verifySession, (req, res, next) => {
+    
+    // get user docoument from verifySession middleware
     const user = req.user;
 
     user.generateAccessAuthToken().then(accessToken => {
         // send access token only in cookie for security
         res.cookie('access-token', accessToken, accessTokenCookieOptions)
-           .send();
+           .status(200).send();
 
     }).catch(err => {
         res.status(401).send(err);

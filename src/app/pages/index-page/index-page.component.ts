@@ -13,7 +13,6 @@ export class IndexPageComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private httpClient: HttpClient,
     private router: Router,
   ) { }
 
@@ -25,8 +24,11 @@ export class IndexPageComponent implements OnInit {
     return this.authService.user;
   }
 
-  onSignOut(): void {
-    this.authService.logout();
+  onLogout(): void {
+    this.authService.logout().subscribe((res: HttpResponse<any>) => {
+        console.log(res.status);
+        this.router.navigate(['/']);
+    });
   }
 
 }

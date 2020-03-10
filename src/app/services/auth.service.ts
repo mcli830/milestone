@@ -25,25 +25,19 @@ export class AuthService {
     return this.user;
   }
 
-  register(user: User): Observable<any> {
+  register(user: User): Observable<HttpResponse<any>> {
     // return Subscription observable
     return this.httpClient.post(
-        '/auth/users',
-        user,
-        { observe: 'response' }
-      ).pipe(
-        shareReplay(), // prevent multicasting
-        tap(this.storeSession.bind(this)) // update cache, then return Observable
-      );
-
-    /*
-     *  localStorage is updated in .pipe() middleware to allow
-     *  component-level functions to .subscribe() to the returned
-     *  Subscription and handle the response outside of the service
-     */
+      '/auth/users',
+      user,
+      { observe: 'response' }
+    ).pipe(
+      shareReplay(), // prevent multicasting
+      tap(this.saveUserData.bind(this)) // side effect function before sending to subscribe
+    );
   }
 
-  login(user: User): Observable<any> {
+  login(user: User): Observable<HttpResponse<any>> {
     // return Subscription observable
     return this.httpClient.post(
       '/auth/users/login',
@@ -51,45 +45,27 @@ export class AuthService {
       { observe: 'response' }
     ).pipe(
       shareReplay(),
-      tap(this.storeSession.bind(this))
+      tap(this.saveUserData.bind(this))
     );
   }
 
-  logout(): void {
-    this.clearSession();
-    this.updateUser(null);
-    console.log('User logged out.');
+  logout(): Observable<HttpResponse<any>> {
+    // request cookie deletion from server
+    return this.httpClient.get(
+      '/auth/users/logout',
+      { observe: 'response' }
+    ).pipe(
+      tap(this.clearUserData.bind(this))
+    );
   }
 
-  getAccessToken(): string {
-    return localStorage.getItem('access-token');
+  // extract user data from response and save to Au
+  private saveUserData(res: HttpResponse<any>): void {
+    this.userObserver.next(res.body);
   }
 
-  setAccessToken(accessToken: string): void {
-    localStorage.setItem('access-token', accessToken);
-  }
-
-  setSessionToken(sessionToken: string): void {
-    localStorage.setItem('session-token', sessionToken);
-  }
-
-  private updateUser(user: User) {
-    this.userObserver.next(user);
-  }
-
-  private storeSession(res: HttpResponse<any>): void {
-    localStorage.setItem('user-id', res.body._id);
-    this.setAccessToken(res.headers.get('x-access-token'));
-    this.setSessionToken(res.headers.get('x-session-token'));
-    console.log('Registered and session stored');
-    this.updateUser(res.body);
-  }
-
-  private clearSession(): void {
-    localStorage.removeItem('user-id');
-    localStorage.removeItem('access-token');
-    localStorage.removeItem('session-token');
-    console.log('Logged out');
-    this.updateUser(null);
+  // remove user data
+  private clearUserData(): void {
+    this.userObserver.next(null);
   }
 }

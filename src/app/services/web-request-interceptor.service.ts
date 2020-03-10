@@ -18,7 +18,7 @@ export class WebRequestInterceptor implements HttpInterceptor {
     next: HttpHandler,
   ): Observable<HttpEvent<any>> {
     // add headers to request object
-    request = this.addAuthHeader(request);
+    // request = this.addAuthHeader(request);
 
     // handle new response
     return next.handle(request).pipe(
@@ -31,14 +31,14 @@ export class WebRequestInterceptor implements HttpInterceptor {
   // add access token header to any requests to api
   addAuthHeader(request: HttpRequest<any>): HttpRequest<any> {
 
-    // get access token from AuthService
-    const token = this.authService.getAccessToken();
+    // get user from AuthService
+    const user = this.authService.getUser();
 
-    if (token) {
-      // insert access token header
+    if (user) {
+      // insert user id into header
       return request.clone({
         setHeaders: {
-          Authorization: `Bearer ${token}`
+          _id: user._id,
         }
       });
     }

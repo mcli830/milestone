@@ -1,7 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-auth-page',
@@ -22,7 +20,7 @@ export class AuthPageComponent implements OnInit {
   }
 
   get register(): boolean {
-    return this.url.slice(0,9) === '/register';
+    return this.url.slice(0, 9) === '/register';
   }
 
   get formHeader(): string {
