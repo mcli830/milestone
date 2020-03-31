@@ -55,8 +55,8 @@ app.use((req,res,next) => {
 
 // central error handler
 app.use((err, req, res, next) => {
-  console.log(err.message);
-  res.status(500).send(err);
+  console.log(err);
+  res.status(err.statusCode || 500).send(err.message);
 });
 
 /* DATABASE CONNECTION */
@@ -80,3 +80,5 @@ mongoose.connect(process.env.MONGO_URI, {
   console.error.bind(console, err);
   process.exit(-1);
 });
+
+module.exports = server;

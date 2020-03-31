@@ -24,7 +24,7 @@ const verifySession = (req, res, next) => {
 
     // no id or session token
     if (!user_id || !sessionToken) {
-      return res.send(createError(401));
+      return next(createError(401, 'User not logged in.'));
     }
 
     User.findByIdAndToken(user_id, sessionToken).then(user => {
@@ -54,40 +54,50 @@ const verifySession = (req, res, next) => {
 /* ROUTES */
 
 // register user
-router.post('/users', (req, res) => {
+router.post('/users', (req, res, next) => {
     // create user instance from params
     const user = new User(req.body);
 
-    // save new user -- validations handled by mongoose
-    user.save().then(() => {
-        // successful save => create new session
-        return user.createSession();
-        // return promise resolving with new sessionToken
-    }).then(sessionToken => {
-        // session created => generate access token for client
-        return user.generateAccessAuthToken().then(accessToken => {
-            // send both tokens to client
-            return { accessToken, sessionToken };
-        });
-    }).then(({ accessToken, sessionToken }) => {
-        // respond with auth tokens and user data
-        res.cookie('user-id', user._id, sessionTokenCookieOptions)
-           .cookie('session-token', sessionToken, sessionTokenCookieOptions)
-           .cookie('access-token', accessToken, accessTokenCookieOptions)
-           .send(user);
+    // check if user already exists
+    User.findOne({ email: user.email }, (err, doc) => {
+        if (err) return next(err);
 
-    }).catch(err => {
-        res.status(401).send(err);
+        // user already exists
+        if (doc) return next(createError(403, 'Email is already registered.'));
+
+        // email is available -> save new user -> validations handled by mongoose
+        user.save().then(() => {
+            // successful save => create new session
+            return user.createSession();
+            // return promise resolving with new sessionToken
+        }).then(sessionToken => {
+            // session created => generate access token for client
+            return user.generateAccessAuthToken().then(accessToken => {
+                // send both tokens to client
+                return { accessToken, sessionToken };
+            });
+        }).then(({ accessToken, sessionToken }) => {
+            // respond with auth tokens and user data
+            res.cookie('user-id', user._id, sessionTokenCookieOptions)
+               .cookie('session-token', sessionToken, sessionTokenCookieOptions)
+               .cookie('access-token', accessToken, accessTokenCookieOptions)
+               .send(user);
+    
+        }).catch(err => {
+            next(err);
+        });
     });
+
 });
 
 // log in user
-router.post('/users/login', (req, res) => {
+router.post('/users/login', (req, res, next) => {
     // get user login params
     const { email, password } = req.body;
-
+    
     // find the login user
     User.findByCredentials(email, password).then(user => {
+        if (!user) return Promise.reject({ message: 'User does not exist.' });
         // user found => create new session token
         return user.createSession().then(sessionToken => {
             // generate access auth token
@@ -103,21 +113,20 @@ router.post('/users/login', (req, res) => {
                .send(user);
         });
     }).catch(err => {
-        res.status(401).send(err);
+        next(createError(401, err.message));
     });
 });
 
 // log out user by manually expiring cookies
-router.get('/users/logout', (req, res) => {
+router.get('/users/logout', (req, res, next) => {
     // get cookies
     const cookies = req.cookies;
-    console.log(cookies)
     // remove each cookie
     for (let key in cookies) {
         // safely access keys
         if (!(key in cookies)) continue;
         // reset value and expire each cookie
-        res.cookie(key, '', { expires: new Date(0) })
+        res.cookie(key, '', { expires: new Date(0) });
     }
     // send successful response
     res.status(200).send();
@@ -132,10 +141,10 @@ router.get('/users/me/access-token', verifySession, (req, res, next) => {
     user.generateAccessAuthToken().then(accessToken => {
         // send access token only in cookie for security
         res.cookie('access-token', accessToken, accessTokenCookieOptions)
-           .status(200).send();
+           .status(200).send(user);
 
     }).catch(err => {
-        res.status(401).send(err);
+        next(err);
     });
 });
 

@@ -21,11 +21,14 @@ export class WebRequestInterceptor implements HttpInterceptor {
     // request = this.addAuthHeader(request);
 
     // handle new response
-    return next.handle(request).pipe(
-      catchError((err: HttpErrorResponse) => {
-        return throwError(err);
-      })
-    );
+    return next
+      .handle(request)
+      // .pipe(
+      //   catchError((err: HttpErrorResponse) => {
+      //     console.log(err);
+      //     return throwError(err);
+      //   })
+      // );
   }
 
   // add access token header to any requests to api

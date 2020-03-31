@@ -67,19 +67,23 @@ UserSchema.statics.findByIdAndToken = function(_id, sessionToken) {
 // find by credentials for login
 UserSchema.statics.findByCredentials = function(email, password) {
     const User = this;
+    checkpoint('Querying user with login credentials...')
 
     return User.findOne({ email }).then(user => {
         // no user found
         if (!user) return Promise.reject({ message: 'User does not exist.' });
+
         // user found => compare passwords
         return new Promise((resolve, reject) => {
             bcrypt.compare(password, user.password, (err, same) => {
                 if (err) return reject(err);
 
                 if (same) {
+                    checkpoint('Password is valid')
                     // passwords match => success
                     resolve(user);
                 } else {
+                    checkpoint('Password is invalid')
                     // password incorrect
                     reject({ message: 'Password is incorrect.' });
                 }
@@ -112,24 +116,23 @@ UserSchema.pre('save', function(next) {
     const user = this;
     const saltRounds = 10; // cost and security level for bcrypt hash
 
-    // if the password field has been edited/changed
-    if (user.isModified('password')) {
-        // generate salt and hash password
-        bcrypt.genSalt(saltRounds, (err, salt) => {
+    // if password has not been changed -> continue to save
+    if (!user.isModified('password')) return next(); 
+    
+    // generate salt and hash password
+    bcrypt.genSalt(saltRounds, (err, salt) => {
+        if (err) return next(err);
+        // successful salt -> generate hash
+        bcrypt.hash(user.password, salt, (err, hash) => {
             if (err) return next(err);
-            // successful salt => generate hash
-            bcrypt.hash(user.password, salt, (err, hash) => {
-                if (err) return next(err);
-                // update user password with hash
-                user.password = hash;
-                // continue with save
-                checkpoint('New hash generated from user password');
-                return next();
-            });
+            // update user password with hash
+            user.password = hash;
+
+            // continue with save
+            checkpoint('New hash generated from user password');
+            return next();
         });
-    }
-    // no modifications => use next middleware
-    return next();
+    });
 });
 
 // post save hook

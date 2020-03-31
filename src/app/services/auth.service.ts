@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpResponse, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { shareReplay, tap } from 'rxjs/operators';
+import { shareReplay, tap, catchError } from 'rxjs/operators';
 import { User } from '../models/user.model';
 import { Subject } from 'rxjs';
 
@@ -24,6 +24,18 @@ export class AuthService {
 
   get user() {
     return this._user;
+  }
+
+  getAccessToken() {
+    return this.httpClient.get(
+      '/auth/users/me/access-token',
+      { observe: 'response' }
+    ).pipe(
+      tap(this.saveUserData.bind(this)),
+      catchError((err: HttpErrorResponse) => {
+        return throwError(err);
+      })
+    )
   }
 
   register(user: User): Observable<HttpResponse<any>> {

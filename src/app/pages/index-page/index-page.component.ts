@@ -17,6 +17,14 @@ export class IndexPageComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    // on page visit, check if user object exists in auth service
+    if (!this.user) {
+      // if no user data, request access token and user data
+      // this should happen when user is logged in, but revisiting/refreshing the page
+      this.authService.getAccessToken().subscribe((res: HttpResponse<any>) => {
+        console.log('resonse: ', res);
+      });
+    }
   }
 
   // use getter to access authService's user variable
@@ -26,7 +34,6 @@ export class IndexPageComponent implements OnInit {
 
   onLogout(): void {
     this.authService.logout().subscribe((res: HttpResponse<any>) => {
-        console.log(res.status);
         this.router.navigate(['/']);
     });
   }

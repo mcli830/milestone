@@ -9,13 +9,16 @@ const { User } = require('../models/index');
 const authenticate = (req, res, next) => {
 
   // get access token from auth header
-  const token = "authorization" in req.headers ? req.headers.authorization.replace('Bearer ', '') : null;
+  // const token = "authorization" in req.headers ? req.headers.authorization.replace('Bearer ', '') : null;
+
+  // get access token from cookies
+  const accessToken = req.cookies['access-token'];
 
   // verify token
-  if (token) {
-    return jwt.verify(token, process.env.SECRET, (err, decoded) => {
+  if (accessToken) {
+    return jwt.verify(accessToken, process.env.SECRET, (err, decoded) => {
       if (err) {
-        return res.status(401).send(err);
+        return next(err);
       }
 
       // jwt is valid -- attach user_id to request
@@ -23,16 +26,16 @@ const authenticate = (req, res, next) => {
       next();
     });
   }
-  // no header or token
-  res.status(401).send(createError(401));
+  // no access token
+  next(createError(401));
 }
 
-router.get('/me', authenticate, (req, res) => {
+router.get('/me', authenticate, (req, res, next) => {
   // find user by id in database
   User.findById({ _id: req.user_id }, (err, user) => {
-    if (err) res.status(401).send(err);
+    if (err) return next(err);
     // no user
-    if (!user) res.status(401).send({ message: 'No user' });
+    if (!user) return next(createError(401, 'No user'));
     // send user data
      res.send(user);
   });
